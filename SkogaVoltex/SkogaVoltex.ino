@@ -7,7 +7,7 @@
 #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
 
 #include <Bounce2.h>
-#include <FastLED.h>
+//#include <FastLED.h>
 #include <Joystick.h>
 #include <ResponsiveAnalogRead.h>
 #include "PluggableUSB.h"
@@ -44,13 +44,13 @@ Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD, NUM_BUTTON
  true, true, false, false, false, false, false, false, false, false, false);
 
 // Button pins
-const byte buttonLightPins[NUM_BUTTONS] = { 0, 1, 2, 3, 4, 5, 19, 19, 6 };
-const byte buttonInputPins[NUM_BUTTONS] = { 7, 8, 9, 10, 11, 12, 20, 20, 13 };
-const byte knobPin1 = A0;
-const byte knobPin2 = A1;
-const byte ledPin1 = A2;
-const byte ledPin2 = A3;
-CRGB leds[NUM_LED_STRIPS][NUM_LEDS_PER_STRIP];
+const byte buttonLightPins[NUM_BUTTONS] = { 2, 3, 4, 5, 19, 18, 1, 1, 15 };
+const byte buttonInputPins[NUM_BUTTONS] = { 6, 7, 8, 9, 14, 16, 0, 0, 10 };
+const byte knobPin1 = A3;
+const byte knobPin2 = A2;
+//const byte ledPin1 = A2;
+//const byte ledPin2 = A3;
+//CRGB leds[NUM_LED_STRIPS][NUM_LEDS_PER_STRIP];
 
 // Button debounce objects
 const Bounce buttons[NUM_BUTTONS] = {
@@ -69,7 +69,7 @@ const Bounce buttons[NUM_BUTTONS] = {
 ResponsiveAnalogRead leftKnob(knobPin1, true);
 ResponsiveAnalogRead rightKnob(knobPin2, true);
 
-void setAllLeds(CRGB color);
+//void setAllLeds(CRGB color);
 
 /**
  * Setup all the hardware pins, etc.
@@ -100,13 +100,13 @@ void setup() {
   pinMode(knobPin2, INPUT);
 
   // Initialize the LED strips
-  FastLED.addLeds<LED_TYPE, ledPin1, LED_ORDER>(leds[0], NUM_LEDS_PER_STRIP);
-  FastLED.addLeds<LED_TYPE, ledPin2, LED_ORDER>(leds[1], NUM_LEDS_PER_STRIP);
+  //FastLED.addLeds<LED_TYPE, ledPin1, LED_ORDER>(leds[0], NUM_LEDS_PER_STRIP);
+  //FastLED.addLeds<LED_TYPE, ledPin2, LED_ORDER>(leds[1], NUM_LEDS_PER_STRIP);
 
   // Boot LED sequence
-  FastLED.setBrightness(128);
-  setAllLeds(CRGB::Blue);
-  FastLED.show();
+  //FastLED.setBrightness(128);
+  //setAllLeds(CRGB::Blue);
+  //FastLED.show();
 }
 
 /**
@@ -120,8 +120,8 @@ void light_update(SingleLED* single_leds, RGBLed* rgb_leds) {
   }
 
   // Read the RGB lights
-  CRGB color = CRGB(rgb_leds[0].r, rgb_leds[0].g, rgb_leds[0].b);
-  setAllLeds(color);
+  //CRGB color = CRGB(rgb_leds[0].r, rgb_leds[0].g, rgb_leds[0].b);
+  //setAllLeds(color);
   lightTimestamp = millis();
 }
 
@@ -158,19 +158,19 @@ void loop() {
     }
     digitalWrite(buttonLightPins[NUM_BUTTONS - 1], lightStates[NUMBER_OF_SINGLE - 1]);
   }
-  FastLED.show();
+  //FastLED.show();
 }
 
 /**
  * Helper function to set all the LEDs across both strips the same color.
  */
-void setAllLeds(CRGB color) {
-  for (int strip = 0; strip < NUM_LED_STRIPS; strip++) {
-    for (int led = 0; led < NUM_LEDS_PER_STRIP; led++) {
-      leds[strip][led] = color;
-    }
-  }
-}
+//void setAllLeds(CRGB color) {
+//  for (int strip = 0; strip < NUM_LED_STRIPS; strip++) {
+//    for (int led = 0; led < NUM_LEDS_PER_STRIP; led++) {
+//      leds[strip][led] = color;
+//    }
+//  }
+//}
 
 // ******************************
 // don't need to edit below here
