@@ -69,6 +69,25 @@ const Bounce buttons[NUM_BUTTONS] = {
 ResponsiveAnalogRead leftKnob(knobPin1, true);
 ResponsiveAnalogRead rightKnob(knobPin2, true);
 
+// Diva mode
+#define ACTIVATION_TIME 50
+#define ACTIVATION_THRESHOLD 10
+#define CANCEL_THRESHOLD 3
+#define SUSTAIN_TIME 175
+
+typedef struct {
+  unsigned long moveTime;
+  int lastVal;
+  int activationVal;
+  bool activating;
+  bool activated;
+  int direction;
+} DivaKnob;
+
+bool divaMode = false;
+DivaKnob divaLeft = {0};
+DivaKnob divaRight = {0};
+
 //void setAllLeds(CRGB color);
 
 /**
@@ -99,6 +118,21 @@ void setup() {
   pinMode(knobPin1, INPUT);
   pinMode(knobPin2, INPUT);
 
+  // Check if should enter Diva mode (holding FX-L, BT-A, Start upon plugging in)
+  if (!digitalRead(buttonInputPins[0]) && !digitalRead(buttonInputPins[4]) && !digitalRead(buttonInputPins[8])) {
+    divaMode = true;
+    for (int i = 0; i < 3; i++) {
+      digitalWrite(buttonLightPins[0], 1);
+      digitalWrite(buttonLightPins[4], 1);
+      digitalWrite(buttonLightPins[8], 1);
+      delay(250);
+      digitalWrite(buttonLightPins[0], 0);
+      digitalWrite(buttonLightPins[4], 0);
+      digitalWrite(buttonLightPins[8], 0);
+      delay(250);
+    }
+  }
+
   // Initialize the LED strips
   //FastLED.addLeds<LED_TYPE, ledPin1, LED_ORDER>(leds[0], NUM_LEDS_PER_STRIP);
   //FastLED.addLeds<LED_TYPE, ledPin2, LED_ORDER>(leds[1], NUM_LEDS_PER_STRIP);
@@ -125,6 +159,82 @@ void light_update(SingleLED* single_leds, RGBLed* rgb_leds) {
   lightTimestamp = millis();
 }
 
+int knob_direction(int oldVal, int newVal) {
+  if (abs(oldVal - newVal) > 768) {
+    // Assume it wrapped around, so return the reverse
+    return newVal < oldVal ? 1 : -1;
+  }
+  return newVal > oldVal ? 1 : -1;
+}
+
+int knob_difference(int oldVal, int newVal) {
+  // If the difference is very large, assume it wrapped around
+  int subtract = abs(oldVal - newVal) > 768 ? 1024 : 0;
+
+  return newVal - oldVal - subtract;
+}
+
+int diva_idle(DivaKnob *knob, int knob_val) {
+    if (knob_val != knob->lastVal) {
+      knob->moveTime = millis();
+      knob->direction = knob_direction(knob->lastVal, knob_val);
+      knob->activationVal = knob_val;
+      knob->activating = true;
+    }
+
+    return 512;
+}
+
+int diva_activating(DivaKnob *knob, int knob_val) {
+    if (millis() - knob->moveTime > ACTIVATION_TIME) {
+      knob->activating = false;
+      knob->lastVal = knob_val;
+    } else if(knob_direction(knob->lastVal, knob_val) != knob->direction && abs(knob_difference(knob->lastVal, knob_val))) {
+      // Cancel this activation
+      knob->activating = false;
+    } else if (abs(knob_difference(knob->activationVal, knob_val)) > CANCEL_THRESHOLD) {
+      knob->activating = false;
+      knob->lastVal = knob_val;
+      knob->moveTime = millis();
+      knob->activated = true;
+    }
+
+    return 512;
+}
+
+int diva_activated(DivaKnob *knob, int knob_val) {
+    if (knob_val != knob->lastVal) {
+      if (knob_direction(knob->lastVal, knob_val) != knob->direction && abs(knob_difference(knob->lastVal, knob_val)) > CANCEL_THRESHOLD) {
+        // Cancel this activation
+        knob->activated = false;
+      } else {
+        knob->moveTime = millis();
+      }
+    } else if (millis() - knob->moveTime > SUSTAIN_TIME) {
+      knob->activated = false;
+    }
+
+    return knob->direction == 1 ? 1024 : 0;
+}
+
+int diva_update(DivaKnob *knob, int knob_val) {
+  int axis = 0;
+
+  // You can progress between all states in one iteration, so check every state in sequence
+  if (!knob->activating && !knob->activated) {
+    axis = diva_idle(knob, knob_val);
+  } 
+  if (knob->activating) {
+    axis = diva_activating(knob, knob_val);
+  } 
+  if (knob->activated) {
+    axis = diva_activated(knob, knob_val);
+  }
+
+  knob->lastVal = knob_val;
+  return axis;
+}
+
 /**
  * Main runtime loop.
  */
@@ -141,8 +251,14 @@ void loop() {
   rightKnob.update();
 
   // Output the joystick states
-  Joystick.setXAxis(leftKnob.getValue());
-  Joystick.setYAxis(rightKnob.getValue());
+  if (divaMode) {
+    Joystick.setXAxis(diva_update(&divaLeft, leftKnob.getValue()));
+    Joystick.setYAxis(diva_update(&divaRight, rightKnob.getValue()));
+  } else {
+    Joystick.setXAxis(leftKnob.getValue());
+    Joystick.setYAxis(rightKnob.getValue());
+  }
+  
   Joystick.sendState();
   
   if (lightTimestamp + 1000 < millis()) {
