@@ -26,6 +26,37 @@
 #define NUMBER_OF_SINGLE 7
 #define NUMBER_OF_RGB 1
 
+// VID 0x1CCF PID 0x101C to spoof SDVX NEMSYS controller
+const DeviceDescriptor PROGMEM USB_DeviceDescriptorIAD =
+        D_DEVICE(0xEF, 0x02, 0x01, 64, 0x1CCF, 0x101C, 0x100, IMANUFACTURER, IPRODUCT, ISERIAL, 1);
+
+const char* const PROGMEM String_Manufacturer = "Konami Amusement";
+const char* const PROGMEM String_Product = "SOUND VOLTEX controller";
+const char* const PROGMEM String_Serial = "SDVX";
+
+const char* const PROGMEM String_Key1 = "BT-A";
+const char* const PROGMEM String_Key2 = "BT-B";
+const char* const PROGMEM String_Key3 = "BT-C";
+const char* const PROGMEM String_Key4 = "BT-D";
+const char* const PROGMEM String_Key5 = "FX-L";
+const char* const PROGMEM String_Key6 = "FX-R";
+const char* const PROGMEM String_Unused = "UNUSED";
+const char* const PROGMEM String_Start = "Start";
+
+const char* String_Table[] = {
+	String_Key1, 
+	String_Key2, 
+	String_Key3, 
+	String_Key4, 
+	String_Key5, 
+	String_Key6, 
+	String_Unused,
+  String_Unused,
+	String_Start,
+};
+const uint8_t STRING_ID_BASE = 4;
+const uint8_t STRING_ID_COUNT = 12;
+
 bool lightStates[NUMBER_OF_SINGLE] = { false };
 unsigned long lightTimestamp = 0;
 
@@ -325,6 +356,28 @@ static const uint8_t PROGMEM _hidReportLEDs[] = {
     0xc0                           // END_COLLECTION
 };
 
+static bool SendControl(u8 data) {
+	return USB_SendControl(0, &data, 1) == 1;
+}
+
+// Send a USB descriptor string. The string is stored in PROGMEM as a
+// plain ASCII string but is sent out as UTF-16 with the correct 2-byte
+// prefix
+// From Arduino's USBCore.cpp
+static bool USB_SendStringDescriptor(const char*string_P, size_t string_len, uint8_t flags) {
+        SendControl(2 + string_len * 2);
+        SendControl(3);
+        bool pgm = flags & TRANSFER_PGM;
+        for(size_t i = 0; i < string_len; i++) {
+                bool r = SendControl(pgm ? pgm_read_byte(&string_P[i]) : (u8)string_P[i]);
+                r &= SendControl(0); // high byte
+                if(!r) {
+                        return false;
+                }
+        }
+        return true;
+}
+
 // This is almost entirely copied from NicoHood's wonderful RawHID example
 // Trimmed to the bare minimum
 // https://github.com/NicoHood/HID/blob/master/src/SingleReport/RawHID.cpp
@@ -350,6 +403,25 @@ class HIDLED_ : public PluggableUSBModule {
     
     int getDescriptor(USBSetup& setup)
     {
+      // Override our VID/PID
+      if (setup.wValueH == USB_DEVICE_DESCRIPTOR_TYPE) {
+          return USB_SendControl(TRANSFER_PGM, &USB_DeviceDescriptorIAD, sizeof(USB_DeviceDescriptorIAD));
+      }
+
+      if (setup.wValueH == USB_STRING_DESCRIPTOR_TYPE) {
+        if (setup.wValueL == IPRODUCT) {
+          return USB_SendStringDescriptor(String_Product, strlen(String_Product), 0);
+        }
+        else if (setup.wValueL == IMANUFACTURER) {
+          return USB_SendStringDescriptor(String_Manufacturer, strlen(String_Manufacturer), 0);
+        }
+        else if (setup.wValueL == ISERIAL) {
+          return USB_SendStringDescriptor(String_Serial, strlen(String_Serial), 0);
+        }
+        else if (setup.wValueL >= STRING_ID_BASE && setup.wValueL < (STRING_ID_BASE + STRING_ID_COUNT)) {
+          return USB_SendStringDescriptor(String_Table[setup.wValueL - STRING_ID_BASE], strlen(String_Table[setup.wValueL - STRING_ID_BASE]), 0);
+        }
+      }
       // Check if this is a HID Class Descriptor request
       if (setup.bmRequestType != REQUEST_DEVICETOHOST_STANDARD_INTERFACE) { return 0; }
       if (setup.wValueH != HID_REPORT_DESCRIPTOR_TYPE) { return 0; }
