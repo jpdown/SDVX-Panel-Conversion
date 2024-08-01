@@ -40,7 +40,6 @@ const char* const PROGMEM String_Key3 = "BT-C";
 const char* const PROGMEM String_Key4 = "BT-D";
 const char* const PROGMEM String_Key5 = "FX-L";
 const char* const PROGMEM String_Key6 = "FX-R";
-const char* const PROGMEM String_Unused = "UNUSED";
 const char* const PROGMEM String_Start = "Start";
 
 const char* String_Table[] = {
@@ -49,13 +48,11 @@ const char* String_Table[] = {
 	String_Key3, 
 	String_Key4, 
 	String_Key5, 
-	String_Key6, 
-	String_Unused,
-  String_Unused,
+	String_Key6,
 	String_Start,
 };
 const uint8_t STRING_ID_BASE = 4;
-const uint8_t STRING_ID_COUNT = 12;
+const uint8_t STRING_ID_COUNT = 7;
 
 bool lightStates[NUMBER_OF_SINGLE] = { false };
 unsigned long lightTimestamp = 0;
@@ -76,7 +73,7 @@ Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD, NUM_BUTTON
 
 // Button pins
 const byte buttonLightPins[NUM_BUTTONS] = { 2, 3, 4, 5, 19, 18, 1, 1, 15 };
-const byte buttonInputPins[NUM_BUTTONS] = { 6, 7, 8, 9, 14, 16, 0, 0, 10 };
+const byte buttonInputPins[NUM_BUTTONS] = { 6, 7, 8, 9, 14, 16, 20, 20, 10 };
 const byte knobPin1 = A3;
 const byte knobPin2 = A2;
 //const byte ledPin1 = A2;
@@ -348,6 +345,8 @@ static const uint8_t PROGMEM _hidReportLEDs[] = {
     // Locals
     0x19, 0x01,                    //   USAGE_MINIMUM (Instance 1)
     0x29, NUMBER_OF_LIGHTS,        //   USAGE_MAXIMUM (Instance n)
+    0x89, 0x04,                    /*     STRING_MINIMUM (04) */
+    0x99, 0x0a,                    /*     STRING_MAXIMUM (10) */
     0x91, 0x02,                    //   OUTPUT (Data,Var,Abs)
     // BTools needs at least 1 input to work properly
     0x19, 0x01,                    //   USAGE_MINIMUM (Instance 1)
