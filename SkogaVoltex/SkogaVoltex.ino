@@ -6,7 +6,6 @@
 #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
 #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
 
-#include <Bounce2.h>
 //#include <FastLED.h>
 #include <Joystick.h>
 #include <ResponsiveAnalogRead.h>
@@ -80,22 +79,12 @@ const byte knobPin2 = A2;
 //const byte ledPin2 = A3;
 //CRGB leds[NUM_LED_STRIPS][NUM_LEDS_PER_STRIP];
 
-// Button debounce objects
-const Bounce buttons[NUM_BUTTONS] = {
-  Bounce(),
-  Bounce(),
-  Bounce(),
-  Bounce(),
-  Bounce(),
-  Bounce(),
-  Bounce(),
-  Bounce(),
-  Bounce()
-};
-
 // Objects to read the analog values of the knobs responsively, but with smoothing
 ResponsiveAnalogRead leftKnob(knobPin1, true);
 ResponsiveAnalogRead rightKnob(knobPin2, true);
+
+// Buttons table
+bool buttons[NUM_BUTTONS] = {0};
 
 // Diva mode
 #define ACTIVATION_TIME 50
@@ -139,8 +128,7 @@ void setup() {
   for (int i = 0; i < NUM_BUTTONS; i++) {
     if (buttonInputPins[i] == 20) continue;
     pinMode(buttonLightPins[i], OUTPUT);
-    buttons[i].attach(buttonInputPins[i], INPUT_PULLUP);
-    buttons[i].interval(5);
+    pinMode(buttonInputPins[i], INPUT_PULLUP);
   }
 
   pinMode(knobPin1, INPUT);
@@ -270,8 +258,8 @@ void loop() {
   // Read the button states
   for (int i = 0; i < NUM_BUTTONS; i++) {
     if (buttonInputPins[i] == 20) continue;
-    buttons[i].update();
-    Joystick.setButton(i, !buttons[i].read());
+    buttons[i] = !digitalRead(buttonInputPins[i]);
+    Joystick.setButton(i, buttons[i]);
   }
 
   // Read the knobs
@@ -292,9 +280,9 @@ void loop() {
   if (lightTimestamp + 1000 < millis()) {
     // Update the lights as reactive
     for (int i = 0; i < NUMBER_OF_SINGLE - 1; i++) {
-      digitalWrite(buttonLightPins[i], !buttons[i].read());
+      digitalWrite(buttonLightPins[i], buttons[i]);
     }
-    digitalWrite(buttonLightPins[NUM_BUTTONS - 1], !buttons[NUM_BUTTONS - 1].read());
+    digitalWrite(buttonLightPins[NUM_BUTTONS - 1], buttons[NUM_BUTTONS - 1]);
   } else {
     // Update the lights as necessary
     for (int i = 0; i < NUMBER_OF_SINGLE - 1; i++) {
